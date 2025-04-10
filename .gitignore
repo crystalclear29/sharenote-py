@@ -92,3 +92,31 @@ viewtop() {
   rm -f "$LESSKEY" "$LESSKEY.out"
 }
 ```
+
+```bash
+# help on bash scripting options
+man test | grep -A 2 " -z " 
+
+# find help on ifs concept
+man bash | less +/"\<IFS\>"
+
+
+
+# help script
+help ()
+{
+    local cmd="$1";
+    local opt="$2";
+    opt="${opt#-}";
+    opt="${opt#-}";
+    if man "$cmd" &> /dev/null; then
+        if [[ ${#opt} -eq 1 ]]; then
+            man "$cmd" | grep --color=auto -A 2 "   -$opt[ ,]";
+        else
+            man "$cmd" | grep --color=auto -A 2 "      --$opt";
+        fi;
+    else
+        "$cmd" --help | grep --color=auto -A 2 "[[:space:]]-*$opt";
+    fi
+}
+```
