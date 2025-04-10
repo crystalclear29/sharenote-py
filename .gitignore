@@ -1,154 +1,94 @@
-# Python
-# ======
+```bash
+# read only vim/neovim with/without telescope
+view
 
-# Byte-compiled / optimized / DLL files
-__pycache__/
-*.py[cod]
-*$py.class
+# less with option to start from the top 
+less -X tiltshared.py
 
-# C extensions
-*.so
 
-# Distribution / packaging
-.Python
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-*.egg-info/
-.installed.cfg
-*.egg
+# use simple tput
+viewcontent() {
+  tput smcup
+  if [ -t 0 ]; then # -t = file desicrpir. 0 if its stdin
+    # No pipe - using arguments
+    if [ "$#" -eq 0 ]; then
+      echo "No input provided. Usage: viewcontent filename OR command | viewcontent"
+    else
+      cat "$@" | less
+    fi
+  else
+    # Input is coming from a pipe
+    cat - | less
+  fi
+  tput rmcup
+}
 
-# PyInstaller
-#  Usually these files are written by a python script from a template
-#  before PyInstaller builds the exe, so as to inject date/other infos into it.
-*.manifest
-*.spec
 
-# Installer logs
-pip-log.txt
-pip-delete-this-directory.txt
-
-# Unit test / coverage reports
-htmlcov/
-.tox/
-.coverage
-.coverage.*
-.cache
-nosetests.xml
-coverage.xml
-*.cover
-.hypothesis/
-
-# Translations
-*.mo
-*.pot
-
-# Django stuff:
-*.log
-local_settings.py
-db.sqlite3
-
-# Flask stuff:
-instance/
-.webassets-cache
-
-# Scrapy stuff:
-.scrapy
-
-# Sphinx documentation
-docs/_build/
-
-# PyBuilder
-target/
-
-# Jupyter Notebook
-.ipynb_checkpoints
-
-# pyenv
-.python-version
-
-# celery beat schedule file
-celerybeat-schedule
-
-# SageMath parsed files
-*.sage.py
-
-# Environments
-.env
-.venv
-env/
-venv/
-ENV/
-
-# Spyder project settings
-.spyderproject
-.spyproject
-
-# Rope project settings
-.ropeproject
-
-# mkdocs documentation
-/site
-
-# mypy
-.mypy_cache/
-
-# node / npm / yarn
-# =================
-
-# dependencies
-/node_modules
-/.pnp
-.pnp.js
-
-# testing
-/coverage
-
-# production
-/build
-
-# misc
-.DS_Store
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
-
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-
-# Editor
-*.swp
-*.swo
-
-# Firmware
-# =======
-
-# ESP-IDF
-sdkconfig
-sdkconfig.old
-
-# Custom
-# ======
-
-data/
-settings.py
-secrets.py
-secrets.h
-*.bin
-output.*
-out.*
-*.csv
-*.txt
-*.json
-static/
+# use more adavnced tput with fzf seach with ctrl+f, syntax highlhgitng
+alias vp=viewtop
+viewtop() {
+  if ! command -v fzf &>/dev/null; then
+    echo "For fuzzy search, please install fzf: sudo apt install fzf"
+  fi
+  
+  TMPFILE=$(mktemp)
+  trap "rm -f $TMPFILE" EXIT
+  highlight_cmd() {
+    if command -v bat &>/dev/null; then
+      bat --color=always --style=plain "$@"
+    elif command -v pygmentize &>/dev/null; then
+      pygmentize -g "$@"
+    else
+      cat "$@"
+    fi
+  }
+  
+  # Optional language parameter
+  LANG=""
+  if [[ "$1" == "--lang" && -n "$2" ]]; then
+    LANG="$2"
+    shift 2
+  fi
+  
+  # Prepare content with line numbers
+  if [ -t 0 ]; then
+    # No pipe - using arguments
+    if [ "$#" -eq 0 ]; then
+      echo "Usage: viewcontent [--lang python|java|etc] filename OR command | viewcontent"
+      return 1
+    else
+      nl -ba "$@" > "$TMPFILE"
+      DISPLAY_CMD="highlight_cmd \"$@\""
+    fi
+  else
+    # Input from pipe
+    nl -ba > "$TMPFILE"
+    cat "$TMPFILE" | sed 's/^\s*\([0-9]\+\)\t/\1: /' > "${TMPFILE}.fmt"
+    mv "${TMPFILE}.fmt" "$TMPFILE"
+    DISPLAY_CMD="cat \"$TMPFILE\" | sed 's/^[0-9]*: //'"
+  fi
+  
+  # Create less key bindings for Ctrl+F
+  LESSKEY=$(mktemp)
+  echo "#command
+^F forw-search" > "$LESSKEY"
+  lesskey -o "$LESSKEY.out" "$LESSKEY" 2>/dev/null
+  
+  # Display with option to fuzzy search
+  tput smcup
+  less_with_options="less -R"
+  if command -v fzf &>/dev/null; then
+    echo "Press Ctrl+F for fuzzy search"
+    # This creates a binding where Ctrl+F will trigger fzf search
+    (eval "$DISPLAY_CMD" | less -R -k "$LESSKEY.out")
+    # Note: For true fuzzy search integration, you would need to exit less,
+    # use fzf on the content, and then return to less at the selected line
+  else
+    (eval "$DISPLAY_CMD" | less -R)
+  fi
+  tput rmcup
+  
+  # Clean up
+  rm -f "$LESSKEY" "$LESSKEY.out"
+}
+```
