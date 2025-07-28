@@ -1,97 +1,62 @@
-apiVersion: tekton.dev/v1beta1
-kind: Task
-metadata:
-  name: generate-apply-knative
-  namespace: tekton-tasks
-spec:
-  params:
-  - default: ""
-    name: APP_NAME
-    type: string
-  - default: ""
-    name: NAMESPACE
-    type: string
-  - default: ""
-    name: APP_IMAGE
-    type: string
-  results:
-    - name: revision
-    - name: url
+create a module in a similar private network style for azure containr app that will pull images from a private, on premise harbor registry
 
+resource "azurerm_windows_web_app" "this" {
+count = var.os == "Windows" ? 1 : 0
+name = var.name
+resource_group_name = var.resource_group_name
+location = var.location
+service_plan_id = var.service_plan_id
+public_network_access_enabled = "false"
 
-  steps:
-  - env:
-    - name: HOME
-      value: /tekton/home/
-    - name: APP_NAME
-      value: $(params.APP_NAME)
-    - name: APP_IMAGE
-      value: $(params.APP_IMAGE)
-    image: yqimage
-    name: generate-knative
-    script: |
-      #!/usr/bin/env bash
+site_config {
+# ftps_state = lookup(var.site_config, "ftps_state", null)
+# scm_type = lookup(var.site_config, "scm_type", null)
+}
 
-      folder_name="knative"
-      mkdir -p "$folder_name"
+}
 
+resource "azurerm_linux_web_app" "this" {
+count = var.os == "Linux" ? 1 : 0
+name = var.name
+resource_group_name = var.resource_group_name
+location = var.location
+service_plan_id = var.service_plan_id
+vnet_image_pull_enabled = true
+public_network_access_enabled = "false"
+site_config {
+# linux_fx_version = lookup(var.site_config, "linux_fx_version", lookup(var.site_config, "runtime", null))
+# ftps_state = lookup(var.site_config, "ftps_state", null)
+# scm_type = lookup(var.site_config, "scm_type", null)
+}
 
-      cp /configmap-knative/knative.yaml /$folder_name/$APP_NAME.yaml
+application_stack {
+docker_registry_url = var.docker_registry_url
+docker_image_name = var.docker_image_name
+docker_registry_username = var.docker_registry_username
+docker_registry_password = var.docker_registry_password
+}
+}
 
-      yq eval '.metadata.name = "$(params.APP_NAME)"' -i /$folder_name/$APP_NAME.yaml
-      yq eval '.metadata.namespace = "$(params.NAMESPACE)"' -i /$folder_name/$APP_NAME.yaml
-      yq eval '.spec.template.spec.containers[0].image = "$(params.APP_IMAGE)"' -i /$folder_name/$APP_NAME.yaml
+resource "azurerm_app_service_virtual_network_swift_connection" "vnet_integration" {
+app_service_id = var.os == "Windows" ? azurerm_windows_web_app.this[0].id : azurerm_linux_web_app.this[0].id
+subnet_id = var.azurerm_network_interface_outbound
+}
 
-      cat /$folder_name/$APP_NAME.yaml
+resource "azurerm_private_endpoint" "endpoint" {
+name = var.private_endpoint_name
+resource_group_name = var.resource_group_network_name
+location = var.location
+subnet_id = var.azurerm_network_interface_inbound
 
-    volumeMounts:
-      - name: knative-volume
-        mountPath: /knative
-      - name: configmap-volume
-        mountPath: /configmap-knative
-    securityContext:
-      runAsNonRoot: true
-      runAsUser: 65532
-      allowPrivilegeEscalation: false
-      capabilities:
-        drop:
-          - "ALL"
-      seccompProfile:
-        type: "RuntimeDefault"
+private_service_connection {
+name = var.private_endpoint_name
+private_connection_resource_id = var.os == "Windows" ? azurerm_windows_web_app.this[0].id : azurerm_linux_web_app.this[0].id
+is_manual_connection = false
+subresource_names = ["sites"]
+}
 
-  - name: kubectl-apply
-    image: kubectl-image
-    env:
-    - name: NAMESPACE
-      value: $(params.NAMESPACE)
-    - name: APP_NAME
-      value: $(params.APP_NAME)
-
-    securityContext:
-      runAsNonRoot: true
-      runAsUser: 65532
-      allowPrivilegeEscalation: false
-      capabilities:
-        drop:
-          - "ALL"
-      seccompProfile:
-        type: "RuntimeDefault"
-    script: |
-      #!/usr/bin/env sh
-      
-      kubectl apply -f /knative/$(params.APP_NAME).yaml
-
-      kubectl wait --for=condition=Ready --timeout=2m ksvc/$(params.APP_NAME) -n $(params.NAMESPACE)
-      
-
-    volumeMounts:
-      - name: knative-volume
-        mountPath: /knative
-
-
-  volumes:
-    - name: knative-volume
-      emptyDir: {}
-    - name: configmap-volume
-      configMap:
-        name: knative
+private_dns_zone_group {
+name = var.name
+private_dns_zone_ids = var.dns_zones
+}
+}
