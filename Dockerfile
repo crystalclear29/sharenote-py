@@ -1,99 +1,15 @@
-{
-  "properties": {
-    "displayName": "Require deletion_protection Tag for Resource Groups",
-    "description": "Ensures a deletion_protection tag is applied to all Resource Groups and its value is either Enabled or Disabled.",
-    "policyType": "Custom",
-    "mode": "All",
-    "metadata": {
-      "category": "Tags"
-    },
-    "version": "1.0.0",
-    "parameters": {
-      "allowedDeletionProtectionValues": {
-        "type": "Array",
-        "metadata": {
-          "displayName": "Allowed deletion_protection values",
-          "description": "Allowed values for the deletion_protection tag."
-        },
-        "allowedValues": [
-          "Enabled",
-          "Disabled"
-        ],
-        "defaultValue": [
-          "Enabled",
-          "Disabled"
-        ]
-      }
-    },
-    "policyRule": {
-      "if": {
-        "allOf": [
-          {
-            "field": "type",
-            "equals": "Microsoft.Resources/subscriptions/resourceGroups"
-          },
-          {
-            "field": "tags['deletion_protection']",
-            "notIn": "[parameters('allowedDeletionProtectionValues')]"
-          },
-          {
-            "not": {
-              "field": "name",
-              "like": "AzureBackupRG_*"
-            }
-          },
-          {
-            "not": {
-              "field": "name",
-              "like": "cloud-shell-storage-*"
-            }
-          },
-          {
-            "not": {
-              "field": "name",
-              "like": "databricks-rg-*"
-            }
-          },
-          {
-            "not": {
-              "field": "name",
-              "like": "Default-ActivityLogAlerts*"
-            }
-          },
-          {
-            "not": {
-              "field": "name",
-              "like": "DefaultResourceGroup-*"
-            }
-          },
-          {
-            "not": {
-              "field": "name",
-              "like": "MC_*"
-            }
-          },
-          {
-            "not": {
-              "field": "name",
-              "like": "NetworkWatcherRG"
-            }
-          },
-          {
-            "not": {
-              "field": "name",
-              "like": "VstsRG-*"
-            }
-          }
-        ]
-      },
-      "then": {
-        "effect": "deny"
-      }
-    }
-  }
-}
+SELECT
+  SUM(`tfuka_memudedet`) AS total_tfuka
+FROM
+  `bidata_prod`.`std`.`dwh_hareldwh_shivuk_dwh_fact_shivuk_agg_by_model_adb_liquid_managed_rls`
+WHERE
+  `month_tfuka` = 202501
+  AND `businesssubject_kibutzal_desc` LIKE '%סיכוני פרט%'
+  AND `mefakeachal_name` LIKE '%דורון נגר%'
+  AND `makor` IN ('TfukaBitulim', 'גמל', 'Niyud Gemel', 'Pensia', 'Prisha_Miyadit', 'HUL', 'Migvan')
 
 
-
-The request content was invalid and could not be deserialized: 'Could not find member 'properties' on object of type 'PolicyDefinitionProperties'. Path 'properties.properties', line 12, position 17.'.
-
+ Generated query was invalid
+Genie created a query that could not be executed successfully. You can try to rephrase your question or contact the owner of this space to add more specific instructions. If this issue persists please contact your Databricks account team.
+Genie tried to generate a running query 3 times but could not resolve the error automatically.
+SQL error: [QUERY_RESULT_WRITE_TO_CLOUD_STORE_PERMISSION_ERROR] The workspace internal storage configuration prevents Databricks from accessing the cloud store. SQLSTATE: 42501
